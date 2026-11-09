@@ -47,7 +47,9 @@ Opening `index.html` directly from disk also works for images; PDF reading needs
 1. Push this repository to GitHub.
 2. In the repository, open **Settings → Pages**.
 3. Under **Build and deployment**, choose **Deploy from a branch**, branch `main`, folder `/ (root)`, and save.
-4. After a minute the app is live at `https://<your-username>.github.io/<repository-name>/`.
+4. Under **Custom domain**, enter `omr.blankfil.com` and save (the `CNAME` file in this repository already holds it).
+5. At the company that manages the DNS for blankfil.com, add a **CNAME** record: name/host `omr`, value/points to `<your-username>.github.io`.
+6. When GitHub shows the domain check as successful, tick **Enforce HTTPS**. The app is then live at `https://omr.blankfil.com`.
 
 ## Files
 
