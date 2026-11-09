@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<title>OMR Result Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;500;600;700&family=Anek+Devanagari:wght@400;600&family=Anek+Gujarati:wght@400;600&family=Anek+Telugu:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an exam-office desk — a four-step strip across the top, then one working surface per step. Bubbles are the recurring motif. */
+:root{
+  --paper:#F5F6FA; --surface:#FFFFFF; --ink:#1A1E38; --muted:#5A6080; --line:#DCDFEB;
+  --accent:#B8174F; --accent-soft:#FBE6EE; --ok:#1C7A4D; --ok-soft:#E3F3EA; --bad:#B3261E; --bad-soft:#FBE9E7; --warn:#8A5A00; --warn-soft:#FFF3D6;
+  --f-body:"Anek Latin","Anek Devanagari","Anek Gujarati","Anek Telugu","Noto Sans",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#11131D; --surface:#191C2A; --ink:#E7E9F3; --muted:#9CA2BE; --line:#2B2F43;
+  --accent:#F0679A; --accent-soft:#3A1E2B; --ok:#5CC48E; --ok-soft:#173326; --bad:#F2847C; --bad-soft:#3A1D1B; --warn:#E5B94F; --warn-soft:#352B12; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#11131D; --surface:#191C2A; --ink:#E7E9F3; --muted:#9CA2BE; --line:#2B2F43;
+  --accent:#F0679A; --accent-soft:#3A1E2B; --ok:#5CC48E; --ok-soft:#173326; --bad:#F2847C; --bad-soft:#3A1D1B; --warn:#E5B94F; --warn-soft:#352B12; color-scheme:dark }
+html,body{background:var(--paper);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;margin:0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;margin-bottom:16px}
+h1{font-size:1.65rem;font-weight:700;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h1 .dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;background:var(--accent);margin-right:.35em;vertical-align:.05em}
+.examline{color:var(--muted);font-size:.95rem}
+.examline b{color:var(--ink);font-weight:600}
+nav.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:18px}
+nav.steps a{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);text-decoration:none;min-width:0}
+nav.steps a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.steps .n{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center;font-family:var(--f-data);font-size:.8rem;color:var(--muted)}
+nav.steps a[aria-current="page"]{border-color:var(--accent)}
+nav.steps a[aria-current="page"] .n{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+nav.steps .t{display:flex;flex-direction:column;min-width:0}
+nav.steps .t b{font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav.steps .t small{color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:640px){ nav.steps .t small{display:none} nav.steps a{flex-direction:column;gap:4px;padding:8px 4px;text-align:center} nav.steps .t b{font-size:.82rem} }
+.banner{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:var(--r);background:var(--warn-soft);color:var(--ink);margin-bottom:16px;font-size:.92rem}
+.banner b{color:var(--warn)}
+section.view{display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+.panel h2{font-size:1.1rem;font-weight:600;margin:0 0 4px}
+.panel p.sub{margin:0 0 14px;color:var(--muted);font-size:.92rem;max-width:68ch}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);letter-spacing:.02em;min-width:0}
+input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;font-size:.95rem;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+textarea{font-family:var(--f-data);font-size:.88rem;resize:vertical}
+button,.btn{font:inherit;font-size:.92rem;font-weight:600;border-radius:8px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+button:hover,.btn:hover{border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:default}
+button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding-inline:8px}
+button.danger{color:var(--bad)}
+button.small{font-size:.82rem;padding:4px 10px}
+.mono{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+/* bubble grid */
+.bgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(var(--rows,17),auto);grid-auto-flow:column;gap:2px 18px}
+@media (max-width:560px){.bgrid{grid-template-columns:repeat(auto-fill,minmax(176px,1fr));grid-template-rows:none;grid-auto-flow:row}}
+.q{display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:8px}
+.q.flag{background:var(--warn-soft);box-shadow:inset 0 0 0 1.5px var(--warn)}
+.q .qn{width:28px;text-align:right;font-family:var(--f-data);font-size:.82rem;color:var(--muted);flex:none}
+.bub{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font-family:var(--f-body);font-size:.78rem;font-weight:600;padding:0;display:grid;place-items:center;cursor:pointer;flex:none}
+.bub:hover{border-color:var(--ink);color:var(--ink)}
+.bub.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.bub.key{box-shadow:0 0 0 2px var(--ok)}
+.bub.on.right{background:var(--ok);border-color:var(--ok)}
+.bub.on.wrong{background:var(--bad);border-color:var(--bad)}
+.q .mark{font-size:.75rem;width:14px;flex:none;text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%}
+
+/* tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--paper)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--f-data);font-variant-numeric:tabular-nums}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--paper)}
+tbody tr.sel{background:var(--accent-soft)}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.rank{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);font-family:var(--f-data);font-size:.85rem}
+.rank.r1{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.rank.r2,.rank.r3{border-color:var(--accent);color:var(--accent)}
+
+/* sheets */
+.sheets-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;align-items:start}
+@media (max-width:1100px){.sheets-layout{grid-template-columns:minmax(0,1fr)}}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:16px;text-align:center;color:var(--muted);font-size:.92rem}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:10px}
+.progress i{display:block;height:100%;background:var(--accent);width:0}
+.strip{border-radius:8px;border:1px solid var(--line);background:#fff;min-height:70px;display:grid;place-items:center;color:var(--muted);font-size:.88rem;text-align:center;overflow:hidden}
+.strip img{display:block;width:100%;height:auto}
+.strip.empty{background:var(--paper);padding:18px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+@media (max-width:480px){.fields{grid-template-columns:minmax(0,1fr)}}
+.scorebar{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:12px}
+.scorebar .big{font-family:var(--f-data);font-size:1.6rem;font-weight:500}
+.checks{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--r);background:var(--warn-soft);margin-bottom:12px}
+.checks .hd{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;font-size:.92rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--warn);color:var(--ink);background:var(--surface);border-radius:999px;padding:2px 4px 2px 10px;font-size:.84rem}
+.chip b{font-family:var(--f-data);font-weight:500}
+.chip button{font-size:.76rem;padding:2px 8px;border-radius:999px}
+.errbox{padding:12px;border-radius:var(--r);background:var(--bad-soft);color:var(--ink);font-size:.92rem;margin-bottom:12px}
+.navbtns{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+details.full{margin-top:10px}
+details.full summary{cursor:pointer;color:var(--muted);font-size:.88rem}
+details.full img{display:block;max-width:100%;margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.filter{display:flex;gap:4px;flex-wrap:wrap}
+.filter button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+/* places */
+.placelist{display:flex;flex-direction:column;gap:6px}
+.pl{display:grid;grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.pl .raw{font-weight:500;overflow-wrap:anywhere}
+.pl .arrow{color:var(--muted)}
+.pl .canon{font-weight:600;color:var(--accent);overflow-wrap:anywhere}
+@media (max-width:520px){.pl{grid-template-columns:auto minmax(0,1fr)} .pl .arrow{display:none} .pl .canon{grid-column:2}}
+.seg{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+
+/* results */
+.stats{display:flex;flex-wrap:wrap;gap:8px 28px}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-family:var(--f-data);font-size:1.35rem;font-weight:500}
+.stats small{color:var(--muted);font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+.bands{display:flex;flex-direction:column;gap:6px}
+.band{display:grid;grid-template-columns:minmax(0,1.4fr) 80px 80px auto;gap:8px;align-items:center}
+.group h3{font-size:1rem;font-weight:600;margin:18px 0 8px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.group h3 small{color:var(--muted);font-weight:400;font-size:.85rem}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 16px;border-radius:8px;font-size:.9rem;z-index:20}
+.fallback textarea{height:120px;margin-top:8px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--bad-soft);font-size:.9rem}
+footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+@media (prefers-reduced-motion:no-preference){ .bub,nav.steps a,.progress i{transition:background-color .12s,border-color .12s,width .2s} }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><span class="dot" aria-hidden="true"></span>OMR Result Desk</h1>
+    <div class="examline" id="examline"></div>
+  </header>
+
+  <nav class="steps" aria-label="Steps">
+    <a href="#setup" data-v="setup"><span class="n">1</span><span class="t"><b>Exam &amp; key</b><small>Questions and correct options</small></span></a>
+    <a href="#sheets" data-v="sheets"><span class="n">2</span><span class="t"><b>Sheets</b><small>Read, check details</small></span></a>
+    <a href="#places" data-v="places"><span class="n">3</span><span class="t"><b>Places</b><small>Merge spellings and scripts</small></span></a>
+    <a href="#ranking" data-v="ranking"><span class="n">4</span><span class="t"><b>Ranking</b><small>Age bands and strata</small></span></a>
+  </nav>
+
+  <div class="banner" id="exbanner" hidden>
+    <span><b>Example data.</b> These sheets are made up so you can try every step. Clear them before your real exam.</span>
+    <button id="clearEx" type="button">Clear examples</button>
+  </div>
+
+  <!-- 1 SETUP -->
+  <section class="view" id="v-setup" hidden>
+    <div class="panel">
+      <h2>Exam details</h2>
+      <p class="sub">Scoring is +1 for each correct answer and 0 for wrong, blank or double-marked answers. The printed sheet has 50 questions; use fewer if the paper has fewer.</p>
+      <div class="row">
+        <label class="f" style="flex:2 1 240px">Exam name<input type="text" id="exTitle"></label>
+        <label class="f" style="flex:1 1 150px">Exam date<input type="date" id="exDate"></label>
+        <label class="f" style="flex:0 1 130px">Questions<input type="number" id="exNq" min="1" max="50"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Answer key</h2>
+      <p class="sub">Tap the correct option for each question, or paste the whole key as letters (for example <span class="mono">ABDCA BBCDA…</span>; spaces and numbers are ignored). One key works for every language version of the sheet.</p>
+      <div class="row" style="margin-bottom:14px">
+        <label class="f" style="flex:1 1 300px">Paste key<textarea id="keyPaste" rows="2" placeholder="ABCD..."></textarea></label>
+        <button type="button" id="applyKey">Apply pasted key</button>
+      </div>
+      <div class="bgrid" id="keyGrid"></div>
+      <p class="muted" id="keyStatus" style="margin:12px 0 0;font-size:.9rem"></p>
+    </div>
+    <div class="panel">
+      <h2>Start a new exam</h2>
+      <p class="sub">Removes all sheets, the key, merged places and bands from this browser. Copy your ranking first if you need it.</p>
+      <div id="resetArea"><button type="button" class="danger" id="resetAll">Clear everything</button></div>
+    </div>
+  </section>
+
+  <!-- 2 SHEETS -->
+  <section class="view" id="v-sheets" hidden>
+    <div class="sheets-layout">
+      <div class="panel">
+        <h2>Answer sheets</h2>
+        <p class="sub">Add scans or phone photos (JPG, PNG) or a scanned PDF with one sheet per page. Bubbles are read automatically; type the handwritten details for each sheet.</p>
+        <div class="drop" id="drop">
+          <input type="file" id="fileIn" accept="image/*,application/pdf" multiple hidden>
+          <button class="primary" type="button" id="pick">Add sheets</button>
+          <div style="margin-top:6px">or drop files here</div>
+          <div id="prog" hidden><div class="progress"><i id="progBar"></i></div><div id="progText" style="margin-top:6px;font-size:.88rem"></div></div>
+        </div>
+        <div class="row" style="margin:12px 0 8px;justify-content:space-between;align-items:center">
+          <div class="filter" role="group" aria-label="Show">
+            <button type="button" class="small" data-f="all" aria-pressed="true">All</button>
+            <button type="button" class="small" data-f="todo" aria-pressed="false">Needs attention</button>
+          </div>
+          <button type="button" class="small" id="addBlank">Add sheet without scan</button>
+        </div>
+        <p class="muted" id="sheetCount" style="font-size:.88rem;margin:0 0 8px"></p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th class="num">#</th><th>Name</th><th>Place</th><th class="num">Age</th><th class="num">Score</th><th>Status</th></tr></thead>
+            <tbody id="sheetRows"></tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:.82rem;margin:10px 0 0">Typed details and answers are saved in this browser. Scanned images stay only until this tab is closed.</p>
+      </div>
+      <div class="panel" id="review"></div>
+    </div>
+  </section>
+
+  <!-- 3 PLACES -->
+  <section class="view" id="v-places" hidden>
+    <div class="panel">
+      <h2>Merge places</h2>
+      <p class="sub">Every name as written on the sheets, with how many people wrote it. Tick the ones that mean the same, then give the single name to rank them under. Capital letters and extra spaces are already ignored.</p>
+      <div class="seg" role="group" aria-label="Field">
+        <button type="button" data-pf="place" aria-pressed="true">Place</button>
+        <button type="button" data-pf="sub" aria-pressed="false">Sub-centre</button>
+      </div>
+      <div class="row" style="margin-bottom:14px">
+        <label class="f" style="flex:1 1 220px">Merge ticked into<input type="text" id="mergeName" list="canonList" placeholder="e.g. Vadodara"></label>
+        <datalist id="canonList"></datalist>
+        <button class="primary" type="button" id="doMerge">Merge</button>
+        <button type="button" id="unMerge">Undo merge for ticked</button>
+      </div>
+      <div class="placelist" id="placeList"></div>
+    </div>
+  </section>
+
+  <!-- 4 RANKING -->
+  <section class="view" id="v-ranking" hidden>
+    <div class="panel">
+      <div class="stats" id="stats"></div>
+      <p class="muted" id="rankWarn" style="margin:10px 0 0;font-size:.9rem"></p>
+    </div>
+    <div class="panel">
+      <h2>Age groups</h2>
+      <p class="sub">Set the bands for this result. Ages are whole years, both ends included. Anyone outside every band is listed as “No age group”.</p>
+      <div class="bands" id="bands"></div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" id="addBand">Add band</button>
+        <button type="button" class="ghost" id="resetBands">Reset to default bands</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <label class="f" style="flex:1 1 240px">Rank within<select id="groupBy">
+          <option value="all">Everyone (overall)</option>
+          <option value="age">Age group</option>
+          <option value="place">Place</option>
+          <option value="sub">Sub-centre</option>
+          <option value="age-place">Age group × place</option>
+          <option value="age-sub">Age group × sub-centre</option>
+          <option value="role">Class / occupation</option>
+          <option value="lang">Language</option>
+        </select></label>
+        <div class="row">
+          <button type="button" id="copyTable">Copy for Excel</button>
+          <button type="button" id="dlCsv" hidden>Download CSV</button>
+        </div>
+      </div>
+      <p class="muted" style="font-size:.88rem;margin:10px 0 0">Equal scores share a rank and the next score takes the next number (1, 2, 2, 3).</p>
+      <div class="fallback" id="copyFallback" hidden>
+        <p class="muted" style="font-size:.88rem;margin:10px 0 0">Copying was blocked here. The text below is selected; press Ctrl+C (or ⌘C) and paste into Excel.</p>
+        <textarea id="copyText" readonly></textarea>
+      </div>
+      <div id="groups"></div>
+    </div>
+  </section>
+
+  <footer class="foot"><span>Reads the 50-question Children's Retreat answer sheet (English, Hindi, Gujarati, Telugu).</span><span>Everything runs in your browser; no sheet or name is uploaded anywhere.</span></footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="omr-reader.js"></script>
+<script>
+(function(){
+const OPTS=['A','B','C','D'];
+const LANGS=['English','Hindi','Gujarati','Telugu'];
+const FLAG_TEXT={double:'Two options filled',faint:'Light mark',erased:'Possible erasure'};
+const DEFAULT_BANDS=[{label:'Up to 10 years',min:0,max:10},{label:'11–14 years',min:11,max:14},{label:'15–18 years',min:15,max:18},{label:'19–25 years',min:19,max:25},{label:'26 and above',min:26,max:120}];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').trim().replace(/\s+/g,' ').toLowerCase();
+const tidy=s=>String(s||'').trim().replace(/\s+/g,' ');
+if(window.pdfjsLib){try{pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js'}catch(e){}}
+
+/* ---------- state ---------- */
+let S=migrate(load())||sample();
+let current=S.sheets[0]?S.sheets[0].id:null;
+let filter='all', placeField='place', busy=false;
+const images={}; // sheet id -> {header, preview} data URLs, this tab only
+
+function sample(){
+  let seed=11; const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+  const nq=50; const key=[]; for(let i=0;i<nq;i++) key.push(Math.floor(rnd()*4));
+  const P=[
+    ['Priya Patel',12,'Class 7','English','Vadodara','Akota',.85],['રાહુલ શાહ',14,'Class 9','Gujarati','વડોદરા','Akota',.7],['Ananya Reddy',16,'Class 11','Telugu','Hyderabad','Secunderabad',.9],
+    ['అనిల్ కుమార్',10,'Class 5','Telugu','హైదరాబాద్','Secunderabad',.6],['अमित शर्मा',13,'Class 8','Hindi','अहमदाबाद','Maninagar',.75],['Meera Joshi',22,'B.Sc 3rd year','English','Ahmedabad','Maninagar',.8],
+    ['Kiran Rao',9,'Class 4','English','Baroda','Akota',.55],['Sneha Desai',17,'Class 12','Gujarati','Surat ','Adajan',.85],['Rohan Verma',35,'Teacher','Hindi','Vijayawada','Benz Circle',.9],
+    ['సాయి కృష్ణ',15,'Class 10','Telugu','Vijayawada','Benz Circle',.7],['Fatima Shaikh',11,'Class 6','Hindi','surat','Adajan',.75],['Dev Mehta',28,'Engineer','Gujarati','Amdavad','Maninagar',.8],
+    ['Lakshmi Nair',19,'B.Com 1st year','English','Hyderabad','Secunderabad',.65],['Arjun Singh',14,'Class 9','Hindi','Vikhroli','Vikhroli West',.7]];
+  const sheets=P.map((p,i)=>{const resp=key.map(k=>{const r=rnd();if(r<0.04)return null;return r<p[6]?k:(k+1+Math.floor(rnd()*3))%4});
+    const flags=Array(nq).fill(null); if(i===1){flags[11]='double';resp[11]=null} if(i===4){flags[29]='faint';resp[29]=null}
+    return {id:'ex'+i,example:true,name:p[0],age:p[1],role:p[2],lang:p[3],place:p[4],sub:p[5],resp,flags}});
+  return {v:2,exam:{title:'Bible Quiz – Children\'s Retreat 2026',date:'',nq,key},sheets,
+    placeMap:{'baroda':'Vadodara','vadodara':'Vadodara','amdavad':'Ahmedabad','ahmedabad':'Ahmedabad','अहमदाबाद':'Ahmedabad'},subMap:{},
+    bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'};
+}
+function blankState(){return {v:2,exam:{title:'',date:'',nq:50,key:Array(50).fill(null)},sheets:[],placeMap:{},subMap:{},bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'}}
+function load(){try{const t=localStorage.getItem('omr-desk-v2');return t?JSON.parse(t):null}catch(e){return null}}
+function migrate(s){if(!s||s.v!==2)return null;s.subMap=s.subMap||{};s.sheets.forEach(x=>{x.flags=x.flags||Array(s.exam.nq).fill(null)});return s}
+let saveT; function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('omr-desk-v2',JSON.stringify(S))}catch(e){toast('Could not save in this browser')}},250)}
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2200)}
+
+/* ---------- derived ---------- */
+const canon=(map,raw)=>{const k=norm(raw);if(!k)return '';return map[k]||tidy(raw)};
+function score(sh){let c=0;for(let i=0;i<S.exam.nq;i++){if(sh.resp[i]!=null&&sh.resp[i]===S.exam.key[i])c++}return c}
+function openFlags(sh){const o=[];for(let i=0;i<S.exam.nq;i++)if(sh.flags&&sh.flags[i])o.push(i);return o}
+function missing(sh){const m=[];if(!tidy(sh.name))m.push('name');if(sh.age===''||sh.age==null||isNaN(+sh.age))m.push('age');if(!tidy(sh.place))m.push('place');if(!tidy(sh.role))m.push('class/occupation');return m}
+function status(sh){
+  if(sh.error)return {cls:'bad',text:'Not read'};
+  const f=openFlags(sh).length; if(f)return {cls:'warn',text:`Check ${f} answer${f>1?'s':''}`};
+  const m=missing(sh); if(m.length)return {cls:'warn',text:`Needs ${m[0]}${m.length>1?' +'+(m.length-1):''}`};
+  return {cls:'ok',text:'Ready'};
+}
+function bandOf(age){if(age===''||age==null||isNaN(+age))return 'No age group';const a=+age;const b=S.bands.find(b=>a>=+b.min&&a<=+b.max);return b?b.label:'No age group'}
+function keyCount(){return S.exam.key.slice(0,S.exam.nq).filter(k=>k!=null).length}
+function examline(){$('#examline').innerHTML=`<b>${esc(S.exam.title||'Untitled exam')}</b> · ${S.exam.nq} questions · ${S.sheets.length} sheets`}
+
+/* ---------- router ---------- */
+const VIEWS=['setup','sheets','places','ranking'];
+function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:'sheets';
+  VIEWS.forEach(x=>{$('#v-'+x).hidden=x!==v});
+  document.querySelectorAll('nav.steps a').forEach(a=>{if(a.dataset.v===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
+  render(v)}
+window.addEventListener('hashchange',route);
+function render(v){
+  $('#exbanner').hidden=!S.sheets.some(s=>s.example);examline();
+  if(v==='setup')renderSetup(); if(v==='sheets')renderSheets(); if(v==='places')renderPlaces(); if(v==='ranking')renderRanking();
+}
+
+/* ---------- bubble grid ---------- */
+function bubbleGrid(el,values,opts){
+  let h='';for(let i=0;i<S.exam.nq;i++){
+    const v=values[i];const k=S.exam.key[i];let mark='';const fl=opts.flags&&opts.flags[i];
+    if(opts.compare&&k!=null){mark=v==null?'<span class="mark muted" title="Blank">–</span>':(v===k?'<span class="mark" style="color:var(--ok)" title="Correct">✓</span>':'<span class="mark" style="color:var(--bad)" title="Wrong">✗</span>')}
+    h+=`<div class="q${fl?' flag':''}" id="${opts.idp||'q'}${i}" ${fl?`title="${esc(FLAG_TEXT[fl])}"`:''}><span class="qn">${i+1}</span>`+OPTS.map((o,j)=>{
+      let c='bub'+(v===j?' on':'');
+      if(opts.compare&&k!=null){if(v===j)c+=(j===k?' right':' wrong');else if(j===k)c+=' key'}
+      return `<button type="button" class="${c}" data-q="${i}" data-o="${j}" aria-label="Question ${i+1} option ${o}" aria-pressed="${v===j}">${o}</button>`}).join('')+mark+'</div>'}
+  el.style.setProperty('--rows',Math.ceil(S.exam.nq/3));
+  el.innerHTML=h;
+  el.onclick=e=>{const b=e.target.closest('.bub');if(!b)return;const q=+b.dataset.q,o=+b.dataset.o;values[q]=values[q]===o?null:o;if(opts.flags)opts.flags[q]=null;opts.onChange()};
+}
+
+/* ---------- setup ---------- */
+function renderSetup(){
+  $('#exTitle').value=S.exam.title||'';$('#exDate').value=S.exam.date||'';$('#exNq').value=S.exam.nq;
+  bubbleGrid($('#keyGrid'),S.exam.key,{idp:'k',onChange(){save();renderSetup()}});
+  const left=S.exam.nq-keyCount();
+  $('#keyStatus').innerHTML=left?`<span class="pill warn">${left} of ${S.exam.nq} still without a correct option</span>`:`<span class="pill ok">Key complete</span> All ${S.exam.nq} questions have a correct option.`;
+  $('#resetArea').innerHTML='<button type="button" class="danger" id="resetAll">Clear everything</button>';
+  $('#resetAll').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, results and the key?</span><button type="button" class="danger" id="resetYes">Yes, clear everything</button><button type="button" id="resetNo">Keep</button></div>';
+    $('#resetYes').onclick=()=>{S=blankState();Object.keys(images).forEach(k=>delete images[k]);current=null;save();render('setup');toast('Cleared. Ready for a new exam')};$('#resetNo').onclick=renderSetup};
+}
+$('#exTitle').addEventListener('input',e=>{S.exam.title=e.target.value;save();examline()});
+$('#exDate').addEventListener('change',e=>{S.exam.date=e.target.value;save()});
+$('#exNq').addEventListener('change',e=>{let n=Math.max(1,Math.min(50,parseInt(e.target.value)||1));S.exam.nq=n;
+  while(S.exam.key.length<n)S.exam.key.push(null);S.sheets.forEach(s=>{while(s.resp.length<n)s.resp.push(null);while(s.flags.length<n)s.flags.push(null)});save();render('setup')});
+$('#applyKey').addEventListener('click',()=>{const letters=$('#keyPaste').value.toUpperCase().replace(/[^ABCD]/g,'');
+  if(!letters){toast('No A, B, C or D letters found');return}
+  for(let i=0;i<S.exam.nq;i++)S.exam.key[i]=i<letters.length?OPTS.indexOf(letters[i]):S.exam.key[i];
+  save();renderSetup();toast(letters.length===S.exam.nq?'Key applied':`Applied ${Math.min(letters.length,S.exam.nq)} letters for ${S.exam.nq} questions`)});
+
+/* ---------- sheets ---------- */
+function newSheet(){return {id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:'',age:'',role:'',lang:'',place:'',sub:'',resp:Array(S.exam.nq).fill(null),flags:Array(S.exam.nq).fill(null)}}
+function needsAttention(s){return status(s).cls!=='ok'}
+function renderSheets(){
+  const list=S.sheets.map((s,i)=>[s,i]).filter(([s])=>filter==='all'||needsAttention(s));
+  $('#sheetRows').innerHTML=list.map(([s,i])=>rowHTML(s,i)).join('')||`<tr><td colspan="6" class="muted" style="white-space:normal;padding:18px 12px">${S.sheets.length?'Every sheet is ready.':'No sheets yet. Add scans above, or add a sheet without a scan to type responses in.'}</td></tr>`;
+  updateCount(); renderReview();
+  document.querySelectorAll('.filter button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===filter));
+}
+function rowHTML(s,i){const st=status(s);return `<tr class="click${s.id===current?' sel':''}" data-id="${s.id}"><td class="num">${i+1}</td><td>${esc(s.name)||'<span class="muted">—</span>'}</td><td>${esc(s.place)||'<span class="muted">—</span>'}</td><td class="num">${esc(s.age)}</td><td class="num">${s.error?'–':score(s)}</td><td><span class="pill ${st.cls}">${esc(st.text)}</span></td></tr>`}
+function updateCount(){const ready=S.sheets.filter(s=>!needsAttention(s)).length;$('#sheetCount').textContent=`${S.sheets.length} sheets · ${ready} ready · ${S.sheets.length-ready} need attention`}
+document.querySelectorAll('.filter button').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.f;renderSheets()}));
+$('#sheetRows').addEventListener('click',e=>{const tr=e.target.closest('tr[data-id]');if(!tr)return;current=tr.dataset.id;renderSheets();if(window.innerWidth<1100)$('#review').scrollIntoView({behavior:'smooth',block:'start'})});
+
+function renderReview(){
+  const el=$('#review');const idx=S.sheets.findIndex(s=>s.id===current);const sh=S.sheets[idx];
+  if(!sh){el.innerHTML='<h2>Sheet review</h2><p class="sub">Select a sheet from the list to check its details and answers.</p>';return}
+  const im=images[sh.id]||{};const sc=score(sh);const blanks=sh.resp.slice(0,S.exam.nq).filter(v=>v==null).length;const fl=openFlags(sh);
+  el.innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><h2>Sheet ${idx+1} of ${S.sheets.length}${sh.file?` <span class="muted" style="font-weight:400;font-size:.85rem">· ${esc(sh.file)}</span>`:''}</h2>
+      <button type="button" class="ghost danger" id="delSheet">Remove sheet</button></div>
+    ${sh.error?`<div class="errbox"><b>This sheet could not be read.</b> ${esc(sh.error)} You can retake the photo and add it again, or tap the answers in below.</div>`:''}
+    <div class="strip${im.header?'':' empty'}">${im.header?`<img src="${im.header}" alt="Handwritten details from the top of the sheet">`:(sh.example?'Example sheet, no scan attached':(sh.file?'Scan was closed with the tab. Add it again to see the handwriting.':'No scan attached'))}</div>
+    <div class="fields">
+      <label class="f">Name<input type="text" id="fName" value="${esc(sh.name)}" autocomplete="off"></label>
+      <label class="f">Age (years)<input type="number" id="fAge" min="3" max="120" value="${esc(sh.age)}"></label>
+      <label class="f">Class / occupation<input type="text" id="fRole" value="${esc(sh.role)}" list="roleSuggest" autocomplete="off"></label>
+      <label class="f">Language<select id="fLang"><option value="">—</option>${LANGS.map(l=>`<option${sh.lang===l?' selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="f">Place<input type="text" id="fPlace" value="${esc(sh.place)}" list="placeSuggest" autocomplete="off"></label>
+      <label class="f">Sub-centre<input type="text" id="fSub" value="${esc(sh.sub)}" list="subSuggest" autocomplete="off"></label>
+    </div>
+    ${['place','sub','role'].map(f=>`<datalist id="${f==='role'?'roleSuggest':f+'Suggest'}">${[...new Set(S.sheets.map(s=>tidy(s[f])).filter(Boolean))].map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`).join('')}
+    ${fl.length?`<div class="checks"><div class="hd"><span><b>${fl.length} answer${fl.length>1?'s':''} to check.</b> Tap the right option in the grid, or keep it as no answer (0 marks).</span><button type="button" class="small" id="clearAllFlags">Keep all as shown</button></div>
+      <div class="chips">${fl.map(q=>`<span class="chip"><b>Q${q+1}</b> ${esc(FLAG_TEXT[sh.flags[q]])}<button type="button" class="ghost" data-go="${q}">Show</button><button type="button" data-keep="${q}">Keep</button></span>`).join('')}</div></div>`:''}
+    <div class="scorebar"><span class="big">${sc}<span class="muted" style="font-size:1rem"> / ${S.exam.nq}</span></span>
+      <span class="muted">${S.exam.nq?Math.round(sc/S.exam.nq*100):0}% · ${blanks} blank${keyCount()<S.exam.nq?` · <span style="color:var(--warn)">key incomplete</span>`:''}</span></div>
+    <div class="bgrid" id="respGrid"></div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>Correct</span><span><i style="background:var(--bad)"></i>Wrong</span><span><i style="box-shadow:0 0 0 2px var(--ok) inset"></i>Correct option (not marked)</span><span><i style="background:var(--warn-soft);box-shadow:0 0 0 1.5px var(--warn) inset;border-radius:3px"></i>To check</span></div>
+    ${im.preview?`<details class="full"><summary>Show the whole straightened sheet</summary><img src="${im.preview}" alt="Straightened answer sheet"></details>`:''}
+    <div class="navbtns"><button type="button" id="prevS" ${idx<=0?'disabled':''}>← Previous</button><button type="button" class="primary" id="nextS" ${idx>=S.sheets.length-1?'disabled':''}>Next sheet →</button></div>`;
+  bubbleGrid($('#respGrid'),sh.resp,{compare:true,flags:sh.flags,onChange(){save();const y=window.scrollY;renderSheets();window.scrollTo(0,y)}});
+  const bind=(id,f,ev)=>$(id).addEventListener(ev||'input',e=>{sh[f]=f==='age'?(e.target.value===''?'':+e.target.value):e.target.value;save();refreshRow(sh)});
+  bind('#fName','name');bind('#fAge','age');bind('#fRole','role');bind('#fLang','lang','change');bind('#fPlace','place');bind('#fSub','sub');
+  el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const q=$('#q'+b.dataset.go);q.scrollIntoView({behavior:'smooth',block:'center'});q.querySelector('.bub').focus({preventScroll:true})});
+  el.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>{sh.flags[+b.dataset.keep]=null;save();renderSheets()});
+  if($('#clearAllFlags'))$('#clearAllFlags').onclick=()=>{sh.flags=sh.flags.map(()=>null);save();renderSheets()};
+  $('#prevS').onclick=()=>{current=S.sheets[idx-1].id;renderSheets();$('#fName').focus()};
+  $('#nextS').onclick=()=>{current=S.sheets[idx+1].id;renderSheets();$('#fName').focus()};
+  const del=$('#delSheet');del.onclick=()=>{if(del.dataset.armed){S.sheets.splice(idx,1);delete images[sh.id];current=(S.sheets[idx]||S.sheets[idx-1]||{}).id||null;save();render('sheets')}else{del.dataset.armed=1;del.textContent='Tap again to remove';setTimeout(()=>{if(del.isConnected){delete del.dataset.armed;del.textContent='Remove sheet'}},3000)}};
+}
+function refreshRow(sh){const tr=document.querySelector(`tr[data-id="${sh.id}"]`);if(!tr)return;const i=S.sheets.indexOf(sh);tr.outerHTML=rowHTML(sh,i);updateCount()}
+
+/* reading files */
+async function* pagesOf(file){
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+    if(!window.pdfjsLib)throw new Error('PDF reading is not available here. Use JPG or PNG images instead.');
+    const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    for(let p=1;p<=doc.numPages;p++){const page=await doc.getPage(p);const vp0=page.getViewport({scale:1});const vp=page.getViewport({scale:1700/vp0.width});
+      const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;yield {canvas:c,label:doc.numPages>1?`${file.name} p.${p}`:file.name,pages:doc.numPages}}
+  } else {
+    const bmp=await createImageBitmap(file);const c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;c.getContext('2d').drawImage(bmp,0,0);bmp.close&&bmp.close();
+    yield {canvas:c,label:file.name,pages:1};
+  }
+}
+async function addFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/')||f.type==='application/pdf'||/\.pdf$/i.test(f.name));
+  if(!list.length){toast('Use JPG, PNG or PDF files');return}
+  if(busy){toast('Still reading the previous files');return}
+  busy=true;$('#prog').hidden=false;$('#pick').disabled=true;
+  let done=0,failed=0,first=null,total=list.length;const bar=$('#progBar'),txt=$('#progText');
+  const tick=()=>{bar.style.width=Math.round(done/Math.max(total,1)*100)+'%';txt.textContent=`Reading ${Math.min(done+1,total)} of ${total}…`};
+  try{
+    for(const f of list){
+      try{
+        let counted=false;
+        for await(const pg of pagesOf(f)){
+          if(!counted&&pg.pages>1){total+=pg.pages-1;counted=true}
+          if(S.sheets.length>=200){toast('200 sheet limit reached');break}
+          tick();await new Promise(r=>setTimeout(r,0));
+          const s=newSheet();s.file=pg.label;
+          let res; try{res=OMRReader.readCanvas(pg.canvas)}catch(e){res={ok:false,error:'Something went wrong while reading this image.'}}
+          if(res.ok){for(let i=0;i<S.exam.nq;i++){s.resp[i]=res.resp[i]??null;s.flags[i]=res.flags[i]??null}images[s.id]={header:res.header,preview:res.preview}}
+          else{s.error=res.error;failed++}
+          S.sheets.push(s);if(!first)first=s.id;done++;
+        }
+      }catch(e){failed++;done++;toast(e.message||`Could not open ${f.name}`)}
+    }
+  } finally {
+    busy=false;$('#pick').disabled=false;$('#prog').hidden=true;bar.style.width='0';
+    if(first)current=first;save();render('sheets');
+    toast(`${done-failed} sheet${done-failed===1?'':'s'} read${failed?`, ${failed} could not be read`:''}`);
+  }
+}
+$('#pick').onclick=()=>$('#fileIn').click();
+$('#fileIn').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+const drop=$('#drop');['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+$('#addBlank').onclick=()=>{if(S.sheets.length>=200){toast('200 sheet limit reached');return}const s=newSheet();S.sheets.push(s);current=s.id;save();renderSheets();$('#fName').focus()};
+
+/* ---------- places & sub-centres ---------- */
+const mapFor=f=>f==='place'?S.placeMap:S.subMap;
+function renderPlaces(){
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pf===placeField));
+  const map=mapFor(placeField);const groups={};
+  S.sheets.forEach(s=>{const k=norm(s[placeField]);if(!k)return;(groups[k]=groups[k]||{raw:tidy(s[placeField]),n:0}).n++});
+  const keys=Object.keys(groups).sort((a,b)=>canon(map,groups[a].raw).localeCompare(canon(map,groups[b].raw))||a.localeCompare(b));
+  $('#placeList').innerHTML=keys.length?keys.map(k=>{const c=map[k];return `<label class="pl"><input type="checkbox" value="${esc(k)}"><span class="raw">${esc(groups[k].raw)} <span class="muted mono" style="font-size:.82rem">×${groups[k].n}</span></span><span class="arrow">${c?'→':''}</span><span class="${c?'canon':'muted'}">${c?esc(c):'not merged'}</span></label>`}).join(''):`<p class="muted">No ${placeField==='place'?'places':'sub-centres'} entered yet.</p>`;
+  $('#canonList').innerHTML=[...new Set(Object.values(map))].sort().map(c=>`<option value="${esc(c)}">`).join('');
+}
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{placeField=b.dataset.pf;renderPlaces()}));
+const ticked=()=>[...document.querySelectorAll('#placeList input:checked')].map(i=>i.value);
+$('#doMerge').onclick=()=>{const t=ticked();const name=tidy($('#mergeName').value);if(!t.length){toast('Tick at least one name');return}if(!name){toast('Type the name to merge into');return}
+  const map=mapFor(placeField);t.forEach(k=>map[k]=name);map[norm(name)]=name;save();$('#mergeName').value='';renderPlaces();toast(`Merged ${t.length} into ${name}`)};
+$('#unMerge').onclick=()=>{const t=ticked();if(!t.length){toast('Tick the names to un-merge');return}const map=mapFor(placeField);t.forEach(k=>delete map[k]);save();renderPlaces();toast('Merge undone')};
+
+/* ---------- ranking ---------- */
+function denseRank(list){list.sort((a,b)=>b.score-a.score||String(a.name).localeCompare(String(b.name)));let r=0,prev=null;list.forEach(x=>{if(x.score!==prev){r++;prev=x.score}x.rank=r});return list}
+function rows(){return S.sheets.filter(s=>!s.error||s.resp.some(v=>v!=null)).map(s=>({name:tidy(s.name),place:canon(S.placeMap,s.place)||'No place',sub:canon(S.subMap,s.sub)||'No sub-centre',age:s.age,band:bandOf(s.age),role:tidy(s.role)||'—',lang:s.lang||'—',score:score(s),ok:!needsAttention(s)}))}
+function grouped(){const all=rows();const g=S.groupBy;if(g==='all')return [['Overall',denseRank(all)]];
+  const keyF={age:r=>r.band,place:r=>r.place,sub:r=>r.sub,'age-place':r=>r.band+' · '+r.place,'age-sub':r=>r.band+' · '+r.sub,role:r=>r.role,lang:r=>r.lang}[g];
+  const m=new Map();all.forEach(r=>{const k=keyF(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});
+  const bandOrder=l=>{const i=S.bands.findIndex(b=>b.label===l);return i<0?999:i};
+  return [...m.entries()].sort((a,b)=>{if(g.startsWith('age')){const d=bandOrder(a[1][0].band)-bandOrder(b[1][0].band);if(d)return d}return a[0].localeCompare(b[0])}).map(([k,v])=>[k,denseRank(v)])}
+function renderRanking(){
+  const all=rows();const n=all.length;const sc=all.map(r=>r.score);const mean=n?(sc.reduce((a,b)=>a+b,0)/n):0;
+  $('#stats').innerHTML=`<div><b>${n}</b><small>Candidates</small></div><div><b>${n?Math.max(...sc):0}<span class="muted" style="font-size:.9rem">/${S.exam.nq}</span></b><small>Highest</small></div><div><b>${mean.toFixed(1)}</b><small>Average</small></div><div><b>${new Set(all.map(r=>r.place)).size}</b><small>Places</small></div>`;
+  const notOk=S.sheets.filter(needsAttention).length;const keyLeft=S.exam.nq-keyCount();
+  $('#rankWarn').innerHTML=[notOk?`<span class="pill warn">${notOk} sheet${notOk>1?'s':''} need attention</span> They are ranked as they stand; resolve them in Sheets for a final result.`:'',keyLeft?`<span class="pill bad">Key incomplete</span> ${keyLeft} questions have no correct option yet.`:''].filter(Boolean).join(' ');
+  renderBands();$('#groupBy').value=S.groupBy;
+  $('#groups').innerHTML=grouped().map(([k,list])=>`<div class="group"><h3>${esc(k)} <small>${list.length} candidate${list.length>1?'s':''}</small></h3><div class="tablewrap"><table><thead><tr><th class="num">Rank</th><th>Name</th><th>Place</th><th>Sub-centre</th><th class="num">Age</th><th>Age group</th><th>Class / occupation</th><th>Language</th><th class="num">Score</th><th class="num">%</th></tr></thead><tbody>${list.map(r=>`<tr><td class="num"><span class="rank r${r.rank}">${r.rank}</span></td><td>${esc(r.name)||'<span class="muted">No name</span>'}${r.ok?'':' <span class="pill warn">check</span>'}</td><td>${esc(r.place)}</td><td>${esc(r.sub)}</td><td class="num">${esc(r.age)}</td><td>${esc(r.band)}</td><td>${esc(r.role)}</td><td>${esc(r.lang)}</td><td class="num">${r.score}</td><td class="num">${S.exam.nq?(r.score/S.exam.nq*100).toFixed(1):'0.0'}</td></tr>`).join('')}</tbody></table></div></div>`).join('')||'<p class="muted">No sheets to rank yet.</p>';
+}
+function renderBands(){$('#bands').innerHTML=`<div class="band muted" style="font-size:.78rem;letter-spacing:.04em;text-transform:uppercase"><span>Label</span><span>From</span><span>To</span><span></span></div>`+S.bands.map((b,i)=>`<div class="band"><input type="text" data-i="${i}" data-f="label" value="${esc(b.label)}" aria-label="Band label"><input type="number" data-i="${i}" data-f="min" value="${b.min}" aria-label="From age"><input type="number" data-i="${i}" data-f="max" value="${b.max}" aria-label="To age"><button type="button" class="ghost" data-del="${i}" aria-label="Remove band">✕</button></div>`).join('')+bandIssues()}
+function bandIssues(){const s=[...S.bands].map(b=>({...b,min:+b.min,max:+b.max})).sort((a,b)=>a.min-b.min);const msg=[];
+  s.forEach((b,i)=>{if(b.min>b.max)msg.push(`“${b.label}” starts after it ends`);if(i&&b.min<=s[i-1].max)msg.push(`“${s[i-1].label}” and “${b.label}” overlap`)});
+  return msg.length?`<p style="margin:6px 0 0;font-size:.88rem"><span class="pill bad">Check bands</span> ${esc(msg.join('; '))}. A person is placed in the first band that fits.</p>`:''}
+$('#bands').addEventListener('change',e=>{const i=e.target.dataset.i;if(i==null)return;const f=e.target.dataset.f;S.bands[i][f]=f==='label'?e.target.value:(+e.target.value||0);save();renderRanking()});
+$('#bands').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(!d)return;S.bands.splice(+d.dataset.del,1);save();renderRanking()});
+$('#addBand').onclick=()=>{const last=S.bands[S.bands.length-1];const min=last?(+last.max+1):0;S.bands.push({label:`${min}–${min+4} years`,min,max:min+4});save();renderRanking()};
+$('#resetBands').onclick=()=>{S.bands=DEFAULT_BANDS.map(b=>({...b}));save();renderRanking()};
+$('#groupBy').addEventListener('change',e=>{S.groupBy=e.target.value;save();renderRanking()});
+function tableRows(sep){
+  const q=v=>{v=String(v??'');return sep===','&&/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v.replace(/\t/g,' ')};
+  const head=['Group','Rank','Name','Place','Sub-centre','Age','Age group','Class / occupation','Language','Score','Out of','Percent'];
+  const lines=[head.map(q).join(sep)];grouped().forEach(([k,list])=>list.forEach(r=>lines.push([k,r.rank,r.name,r.place,r.sub,r.age,r.band,r.role,r.lang,r.score,S.exam.nq,(S.exam.nq?(r.score/S.exam.nq*100).toFixed(1):'0')].map(q).join(sep))));
+  return lines.join('\n');
+}
+$('#copyTable').addEventListener('click',()=>{const text=tableRows('\t');const fb=()=>{$('#copyFallback').hidden=false;const t=$('#copyText');t.value=text;t.focus();t.select()};
+  try{navigator.clipboard.writeText(text).then(()=>{$('#copyFallback').hidden=true;toast('Copied. Paste into Excel')},fb)}catch(e){fb()}});
+// Downloads work when the app is opened on its own (e.g. GitHub Pages), not inside an embedded preview.
+if(window.self===window.top){$('#dlCsv').hidden=false;$('#dlCsv').onclick=()=>{const blob=new Blob(['﻿'+tableRows(',')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ranking-${S.groupBy}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}}
+
+$('#clearEx').onclick=()=>{S.sheets=S.sheets.filter(s=>!s.example);if(!S.sheets.length){const b=blankState();S.exam=b.exam;S.placeMap={};S.subMap={}}current=S.sheets[0]?S.sheets[0].id:null;save();route();toast('Examples cleared')};
+
+route();
+})();
+</script>
+</html>

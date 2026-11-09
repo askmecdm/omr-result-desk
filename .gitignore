@@ -1,0 +1,4 @@
+tools/fonts/
+tests/out*/
+__pycache__/
+*.pyc

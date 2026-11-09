@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><script src="../omr-reader.js"></script>
+<script>
+async function readB64(b64){const img=new Image();img.src='data:image/jpeg;base64,'+b64;await img.decode();
+const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;c.getContext('2d').drawImage(img,0,0);
+const t=performance.now();const r=OMRReader.readCanvas(c);r.ms=Math.round(performance.now()-t);delete r.preview;delete r.header;return r}
+</script>
