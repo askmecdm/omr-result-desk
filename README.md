@@ -13,6 +13,16 @@ Everything runs in the browser. No sheet, name or score is uploaded anywhere; da
 3. **Places**: merge different spellings and scripts of the same place or sub-centre (e.g. *Baroda*, *Vadodara*, *વડોદરા*) before ranking.
 4. **Ranking**: define your own age bands, then rank overall or within age group, place, sub-centre, age × place, age × sub-centre, class/occupation or language. Equal scores share a rank and the next score takes the next number (1, 2, 2, 3). Copy the table into Excel or download it as CSV.
 
+### Using several computers
+
+1. **Organiser:** on *Exam & key*, enter the key and lock it with a PIN (4–8 digits). Then use **Download exam file** or **Copy exam code** and send it to each volunteer.
+2. **Volunteers:** open the app, go to *Exam & key → Load an exam from the organiser*, and open the file or paste the code. The key is visible but cannot be changed without the PIN.
+3. **Volunteers** read their batch of sheets, type their name under *Sheets → Combine computers*, and send the organiser their **results file** or **results code**.
+4. **Organiser:** add each results file under *Sheets → Combine computers*. Adding the same file twice changes nothing; the same paper scanned on two computers is marked **Possible duplicate**.
+5. Ranking always uses the key on the organiser's computer.
+
+The PIN prevents accidental or casual changes on shared computers. It is not strong security: someone with technical skill and access to the browser could get around it.
+
 Scoring: +1 for each correct answer, 0 for wrong, blank or unresolved double-marked answers.
 
 ## The answer sheets

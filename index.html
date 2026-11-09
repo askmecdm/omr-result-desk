@@ -70,6 +70,7 @@ button.small{font-size:.82rem;padding:4px 10px}
 .q .qn{width:28px;text-align:right;font-family:var(--f-data);font-size:.82rem;color:var(--muted);flex:none}
 .bub{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font-family:var(--f-body);font-size:.78rem;font-weight:600;padding:0;display:grid;place-items:center;cursor:pointer;flex:none}
 .bub:hover{border-color:var(--ink);color:var(--ink)}
+.bub:disabled{cursor:default}.bub:disabled:hover{border-color:var(--muted);color:var(--muted)}.bub.on:disabled{color:var(--surface)}
 .bub.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .bub.key{box-shadow:0 0 0 2px var(--ok)}
 .bub.on.right{background:var(--ok);border-color:var(--ok)}
@@ -147,6 +148,19 @@ details.full img{display:block;max-width:100%;margin-top:8px;border:1px solid va
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 16px;border-radius:8px;font-size:.9rem;z-index:20}
 .fallback textarea{height:120px;margin-top:8px}
 .confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--bad-soft);font-size:.9rem}
+.pin{width:9em!important;font-family:var(--f-data);letter-spacing:.2em}
+.lockhead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.lockhead h2{display:flex;align-items:center;gap:10px}
+.lockicon{width:22px;height:22px;flex:none}
+.sharegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.sharegrid{grid-template-columns:minmax(0,1fr)}}
+.sharegrid>div{display:flex;flex-direction:column;gap:10px;min-width:0}
+.sharegrid h3{font-size:.98rem;font-weight:600;margin:0}
+.sharegrid p{margin:0;color:var(--muted);font-size:.9rem}
+.codebox{height:84px}
+.note{font-size:.86rem;color:var(--muted)}
+.okline{font-size:.9rem;padding:8px 12px;border-radius:8px;background:var(--ok-soft)}
+.errline{font-size:.9rem;padding:8px 12px;border-radius:8px;background:var(--bad-soft)}
 footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
 @media (prefers-reduced-motion:no-preference){ .bub,nav.steps a,.progress i{transition:background-color .12s,border-color .12s,width .2s} }
 </style>
@@ -171,6 +185,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
 
   <!-- 1 SETUP -->
   <section class="view" id="v-setup" hidden>
+    <div class="panel" id="lockPanel"></div>
     <div class="panel">
       <h2>Exam details</h2>
       <p class="sub">Scoring is +1 for each correct answer and 0 for wrong, blank or double-marked answers. The printed sheet has 50 questions; use fewer if the paper has fewer.</p>
@@ -190,6 +205,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
       <div class="bgrid" id="keyGrid"></div>
       <p class="muted" id="keyStatus" style="margin:12px 0 0;font-size:.9rem"></p>
     </div>
+    <div class="panel" id="sharePanel"></div>
     <div class="panel">
       <h2>Start a new exam</h2>
       <p class="sub">Removes all sheets, the key, merged places and bands from this browser. Copy your ranking first if you need it.</p>
@@ -227,6 +243,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
       </div>
       <div class="panel" id="review"></div>
     </div>
+    <div class="panel" id="combinePanel"></div>
   </section>
 
   <!-- 3 PLACES -->
@@ -289,7 +306,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
     </div>
   </section>
 
-  <footer class="foot"><span>Reads the 50-question Children's Retreat answer sheet (English, Hindi, Gujarati, Telugu).</span><span>Everything runs in your browser; no sheet or name is uploaded anywhere.</span></footer>
+  <footer class="foot"><span>Reads the 50-question Children's Retreat answer sheet (English, Hindi, Gujarati, Telugu).</span><span>Everything runs in your browser; no sheet or name is uploaded anywhere. Each computer keeps its own data until results are combined.</span></footer>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -305,12 +322,18 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s||'').trim().replace(/\s+/g,' ').toLowerCase();
 const tidy=s=>String(s||'').trim().replace(/\s+/g,' ');
+const rid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+function cyrb(str,seed){let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0;i<str.length;i++){const ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(16)}
+function pinHash(pin,salt){let h=salt;for(let i=0;i<4000;i++)h=cyrb(h+':'+pin,i);return h}
+const keySig=()=>cyrb(S.exam.key.slice(0,S.exam.nq).map(v=>v==null?'-':'ABCD'[v]).join(''),7);
 if(window.pdfjsLib){try{pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js'}catch(e){}}
 
 /* ---------- state ---------- */
 let S=migrate(load())||sample();
 let current=S.sheets[0]?S.sheets[0].id:null;
-let filter='all', placeField='place', busy=false;
+let filter='all', placeField='place', busy=false, unlocked=false;
+const locked=()=>!!S.exam.lock&&!unlocked;
 const images={}; // sheet id -> {header, preview} data URLs, this tab only
 
 function sample(){
@@ -325,13 +348,13 @@ function sample(){
   const sheets=P.map((p,i)=>{const resp=key.map(k=>{const r=rnd();if(r<0.04)return null;return r<p[6]?k:(k+1+Math.floor(rnd()*3))%4});
     const flags=Array(nq).fill(null); if(i===1){flags[11]='double';resp[11]=null} if(i===4){flags[29]='faint';resp[29]=null}
     return {id:'ex'+i,example:true,name:p[0],age:p[1],role:p[2],lang:p[3],place:p[4],sub:p[5],resp,flags}});
-  return {v:2,exam:{title:'Bible Quiz – Children\'s Retreat 2026',date:'',nq,key},sheets,
+  return {v:2,me:'',exam:{id:rid(),sample:true,title:'Bible Quiz – Children\'s Retreat 2026',date:'',nq,key,lock:null},sheets,
     placeMap:{'baroda':'Vadodara','vadodara':'Vadodara','amdavad':'Ahmedabad','ahmedabad':'Ahmedabad','अहमदाबाद':'Ahmedabad'},subMap:{},
     bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'};
 }
-function blankState(){return {v:2,exam:{title:'',date:'',nq:50,key:Array(50).fill(null)},sheets:[],placeMap:{},subMap:{},bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'}}
+function blankState(){return {v:2,me:'',exam:{id:rid(),title:'',date:'',nq:50,key:Array(50).fill(null),lock:null},sheets:[],placeMap:{},subMap:{},bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'}}
 function load(){try{const t=localStorage.getItem('omr-desk-v2');return t?JSON.parse(t):null}catch(e){return null}}
-function migrate(s){if(!s||s.v!==2)return null;s.subMap=s.subMap||{};s.sheets.forEach(x=>{x.flags=x.flags||Array(s.exam.nq).fill(null)});return s}
+function migrate(s){if(!s||s.v!==2)return null;s.subMap=s.subMap||{};s.exam.id=s.exam.id||rid();s.exam.lock=s.exam.lock||null;s.me=s.me||'';s.sheets.forEach(x=>{x.flags=x.flags||Array(s.exam.nq).fill(null)});return s}
 let saveT; function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('omr-desk-v2',JSON.stringify(S))}catch(e){toast('Could not save in this browser')}},250)}
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2200)}
 
@@ -342,10 +365,14 @@ function openFlags(sh){const o=[];for(let i=0;i<S.exam.nq;i++)if(sh.flags&&sh.fl
 function missing(sh){const m=[];if(!tidy(sh.name))m.push('name');if(sh.age===''||sh.age==null||isNaN(+sh.age))m.push('age');if(!tidy(sh.place))m.push('place');if(!tidy(sh.role))m.push('class/occupation');return m}
 function status(sh){
   if(sh.error)return {cls:'bad',text:'Not read'};
+  if(dupOf(sh))return {cls:'bad',text:'Possible duplicate'};
   const f=openFlags(sh).length; if(f)return {cls:'warn',text:`Check ${f} answer${f>1?'s':''}`};
   const m=missing(sh); if(m.length)return {cls:'warn',text:`Needs ${m[0]}${m.length>1?' +'+(m.length-1):''}`};
   return {cls:'ok',text:'Ready'};
 }
+function respKey(sh){const r=sh.resp.slice(0,S.exam.nq);return r.filter(v=>v!=null).length>=10?r.map(v=>v==null?'-':v).join(''):null}
+function dupOf(sh){if(sh.dupOk||sh.error)return null;const k=respKey(sh);if(!k)return null;const n=norm(sh.name);
+  return S.sheets.find(o=>o!==sh&&!o.error&&respKey(o)===k&&(!n||!norm(o.name)||norm(o.name)===n))||null}
 function bandOf(age){if(age===''||age==null||isNaN(+age))return 'No age group';const a=+age;const b=S.bands.find(b=>a>=+b.min&&a<=+b.max);return b?b.label:'No age group'}
 function keyCount(){return S.exam.key.slice(0,S.exam.nq).filter(k=>k!=null).length}
 function examline(){$('#examline').innerHTML=`<b>${esc(S.exam.title||'Untitled exam')}</b> · ${S.exam.nq} questions · ${S.sheets.length} sheets`}
@@ -359,7 +386,8 @@ function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:'she
 window.addEventListener('hashchange',route);
 function render(v){
   $('#exbanner').hidden=!S.sheets.some(s=>s.example);examline();
-  if(v==='setup')renderSetup(); if(v==='sheets')renderSheets(); if(v==='places')renderPlaces(); if(v==='ranking')renderRanking();
+  $('nav.steps a[data-v="setup"] small').textContent=S.exam.lock?(unlocked?'Unlocked on this computer':'Locked by organiser'):'Questions and correct options';
+  if(v==='setup')renderSetup(); if(v==='sheets'){renderSheets();renderCombine()} if(v==='places')renderPlaces(); if(v==='ranking')renderRanking();
 }
 
 /* ---------- bubble grid ---------- */
@@ -370,7 +398,7 @@ function bubbleGrid(el,values,opts){
     h+=`<div class="q${fl?' flag':''}" id="${opts.idp||'q'}${i}" ${fl?`title="${esc(FLAG_TEXT[fl])}"`:''}><span class="qn">${i+1}</span>`+OPTS.map((o,j)=>{
       let c='bub'+(v===j?' on':'');
       if(opts.compare&&k!=null){if(v===j)c+=(j===k?' right':' wrong');else if(j===k)c+=' key'}
-      return `<button type="button" class="${c}" data-q="${i}" data-o="${j}" aria-label="Question ${i+1} option ${o}" aria-pressed="${v===j}">${o}</button>`}).join('')+mark+'</div>'}
+      return `<button type="button" class="${c}" data-q="${i}" data-o="${j}" aria-label="Question ${i+1} option ${o}" aria-pressed="${v===j}"${opts.readOnly?' disabled':''}>${o}</button>`}).join('')+mark+'</div>'}
   el.style.setProperty('--rows',Math.ceil(S.exam.nq/3));
   el.innerHTML=h;
   el.onclick=e=>{const b=e.target.closest('.bub');if(!b)return;const q=+b.dataset.q,o=+b.dataset.o;values[q]=values[q]===o?null:o;if(opts.flags)opts.flags[q]=null;opts.onChange()};
@@ -379,24 +407,26 @@ function bubbleGrid(el,values,opts){
 /* ---------- setup ---------- */
 function renderSetup(){
   $('#exTitle').value=S.exam.title||'';$('#exDate').value=S.exam.date||'';$('#exNq').value=S.exam.nq;
-  bubbleGrid($('#keyGrid'),S.exam.key,{idp:'k',onChange(){save();renderSetup()}});
+  const L=locked();['#exTitle','#exDate','#exNq','#keyPaste','#applyKey'].forEach(id=>$(id).disabled=L);
+  bubbleGrid($('#keyGrid'),S.exam.key,{idp:'k',readOnly:L,onChange(){delete S.exam.sample;save();renderSetup()}});
+  renderLock();renderShare();
   const left=S.exam.nq-keyCount();
   $('#keyStatus').innerHTML=left?`<span class="pill warn">${left} of ${S.exam.nq} still without a correct option</span>`:`<span class="pill ok">Key complete</span> All ${S.exam.nq} questions have a correct option.`;
-  $('#resetArea').innerHTML='<button type="button" class="danger" id="resetAll">Clear everything</button>';
-  $('#resetAll').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, results and the key?</span><button type="button" class="danger" id="resetYes">Yes, clear everything</button><button type="button" id="resetNo">Keep</button></div>';
-    $('#resetYes').onclick=()=>{S=blankState();Object.keys(images).forEach(k=>delete images[k]);current=null;save();render('setup');toast('Cleared. Ready for a new exam')};$('#resetNo').onclick=renderSetup};
+  $('#resetArea').innerHTML=L?'<p class="note" style="margin:0">Locked. Unlock with the organiser PIN to clear this computer.</p>':'<button type="button" class="danger" id="resetAll">Clear everything</button>';
+  if(!L)$('#resetAll').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, results and the key?</span><button type="button" class="danger" id="resetYes">Yes, clear everything</button><button type="button" id="resetNo">Keep</button></div>';
+    $('#resetYes').onclick=()=>{S=blankState();unlocked=false;Object.keys(images).forEach(k=>delete images[k]);current=null;save();render('setup');toast('Cleared. Ready for a new exam')};$('#resetNo').onclick=renderSetup};
 }
-$('#exTitle').addEventListener('input',e=>{S.exam.title=e.target.value;save();examline()});
+$('#exTitle').addEventListener('input',e=>{if(locked())return;delete S.exam.sample;S.exam.title=e.target.value;save();examline()});
 $('#exDate').addEventListener('change',e=>{S.exam.date=e.target.value;save()});
 $('#exNq').addEventListener('change',e=>{let n=Math.max(1,Math.min(50,parseInt(e.target.value)||1));S.exam.nq=n;
   while(S.exam.key.length<n)S.exam.key.push(null);S.sheets.forEach(s=>{while(s.resp.length<n)s.resp.push(null);while(s.flags.length<n)s.flags.push(null)});save();render('setup')});
-$('#applyKey').addEventListener('click',()=>{const letters=$('#keyPaste').value.toUpperCase().replace(/[^ABCD]/g,'');
+$('#applyKey').addEventListener('click',()=>{if(locked())return;delete S.exam.sample;const letters=$('#keyPaste').value.toUpperCase().replace(/[^ABCD]/g,'');
   if(!letters){toast('No A, B, C or D letters found');return}
   for(let i=0;i<S.exam.nq;i++)S.exam.key[i]=i<letters.length?OPTS.indexOf(letters[i]):S.exam.key[i];
   save();renderSetup();toast(letters.length===S.exam.nq?'Key applied':`Applied ${Math.min(letters.length,S.exam.nq)} letters for ${S.exam.nq} questions`)});
 
 /* ---------- sheets ---------- */
-function newSheet(){return {id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:'',age:'',role:'',lang:'',place:'',sub:'',resp:Array(S.exam.nq).fill(null),flags:Array(S.exam.nq).fill(null)}}
+function newSheet(){return {id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),by:tidy(S.me),name:'',age:'',role:'',lang:'',place:'',sub:'',resp:Array(S.exam.nq).fill(null),flags:Array(S.exam.nq).fill(null)}}
 function needsAttention(s){return status(s).cls!=='ok'}
 function renderSheets(){
   const list=S.sheets.map((s,i)=>[s,i]).filter(([s])=>filter==='all'||needsAttention(s));
@@ -413,8 +443,9 @@ function renderReview(){
   const el=$('#review');const idx=S.sheets.findIndex(s=>s.id===current);const sh=S.sheets[idx];
   if(!sh){el.innerHTML='<h2>Sheet review</h2><p class="sub">Select a sheet from the list to check its details and answers.</p>';return}
   const im=images[sh.id]||{};const sc=score(sh);const blanks=sh.resp.slice(0,S.exam.nq).filter(v=>v==null).length;const fl=openFlags(sh);
-  el.innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><h2>Sheet ${idx+1} of ${S.sheets.length}${sh.file?` <span class="muted" style="font-weight:400;font-size:.85rem">· ${esc(sh.file)}</span>`:''}</h2>
+  el.innerHTML=`<div class="row" style="justify-content:space-between;align-items:baseline"><h2>Sheet ${idx+1} of ${S.sheets.length}${sh.file?` <span class="muted" style="font-weight:400;font-size:.85rem">· ${esc(sh.file)}</span>`:''}${sh.by?` <span class="muted" style="font-weight:400;font-size:.85rem">· by ${esc(sh.by)}</span>`:''}</h2>
       <button type="button" class="ghost danger" id="delSheet">Remove sheet</button></div>
+    ${dupOf(sh)?`<div class="checks"><div class="hd"><span><b>Possible duplicate.</b> Sheet ${S.sheets.indexOf(dupOf(sh))+1}${dupOf(sh).by?` (from ${esc(dupOf(sh).by)})`:''} has exactly the same answers${tidy(dupOf(sh).name)?' and name':''}. The same paper may have been scanned twice.</span><span class="row"><button type="button" class="small" id="dupOk">Not a duplicate</button></span></div></div>`:''}
     ${sh.error?`<div class="errbox"><b>This sheet could not be read.</b> ${esc(sh.error)} You can retake the photo and add it again, or tap the answers in below.</div>`:''}
     <div class="strip${im.header?'':' empty'}">${im.header?`<img src="${im.header}" alt="Handwritten details from the top of the sheet">`:(sh.example?'Example sheet, no scan attached':(sh.file?'Scan was closed with the tab. Add it again to see the handwriting.':'No scan attached'))}</div>
     <div class="fields">
@@ -439,6 +470,7 @@ function renderReview(){
   bind('#fName','name');bind('#fAge','age');bind('#fRole','role');bind('#fLang','lang','change');bind('#fPlace','place');bind('#fSub','sub');
   el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const q=$('#q'+b.dataset.go);q.scrollIntoView({behavior:'smooth',block:'center'});q.querySelector('.bub').focus({preventScroll:true})});
   el.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>{sh.flags[+b.dataset.keep]=null;save();renderSheets()});
+  if($('#dupOk'))$('#dupOk').onclick=()=>{sh.dupOk=true;save();renderSheets()};
   if($('#clearAllFlags'))$('#clearAllFlags').onclick=()=>{sh.flags=sh.flags.map(()=>null);save();renderSheets()};
   $('#prevS').onclick=()=>{current=S.sheets[idx-1].id;renderSheets();$('#fName').focus()};
   $('#nextS').onclick=()=>{current=S.sheets[idx+1].id;renderSheets();$('#fName').focus()};
@@ -547,7 +579,134 @@ $('#copyTable').addEventListener('click',()=>{const text=tableRows('\t');const f
 // Downloads work when the app is opened on its own (e.g. GitHub Pages), not inside an embedded preview.
 if(window.self===window.top){$('#dlCsv').hidden=false;$('#dlCsv').onclick=()=>{const blob=new Blob(['﻿'+tableRows(',')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ranking-${S.groupBy}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}}
 
-$('#clearEx').onclick=()=>{S.sheets=S.sheets.filter(s=>!s.example);if(!S.sheets.length){const b=blankState();S.exam=b.exam;S.placeMap={};S.subMap={}}current=S.sheets[0]?S.sheets[0].id:null;save();route();toast('Examples cleared')};
+/* ---------- organiser lock ---------- */
+const LOCK_SVG='<svg class="lockicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
+function renderLock(){
+  const el=$('#lockPanel'),lk=S.exam.lock;
+  if(!lk){
+    el.innerHTML=`<div class="lockhead"><h2>${LOCK_SVG}Organiser lock</h2><span class="pill warn">Not locked</span></div>
+      <p class="sub" style="margin-top:6px">Set a PIN to lock the exam details, answer key and "Clear everything". Volunteers can still see the key and read sheets, but only someone with the PIN can change it.</p>
+      <div class="row"><label class="f">New PIN (4–8 digits)<input class="pin" type="password" inputmode="numeric" id="pin1" maxlength="8" autocomplete="new-password"></label>
+      <label class="f">Repeat PIN<input class="pin" type="password" inputmode="numeric" id="pin2" maxlength="8" autocomplete="new-password"></label>
+      <button type="button" class="primary" id="doLock">Lock exam &amp; key</button></div><div id="lockMsg"></div>`;
+    $('#doLock').onclick=()=>{const a=$('#pin1').value.trim(),b=$('#pin2').value.trim();
+      if(!/^\d{4,8}$/.test(a)){$('#lockMsg').innerHTML='<p class="errline">Use 4 to 8 digits for the PIN.</p>';return}
+      if(a!==b){$('#lockMsg').innerHTML='<p class="errline">The two PINs are different. Type the same PIN twice.</p>';return}
+      delete S.exam.sample;const salt=rid();S.exam.lock={salt,hash:pinHash(a,salt)};unlocked=false;save();render('setup');toast('Exam and key locked')};
+  } else if(!unlocked){
+    el.innerHTML=`<div class="lockhead"><h2>${LOCK_SVG}Locked by organiser</h2><span class="pill ok">Locked</span></div>
+      <p class="sub" style="margin-top:6px">The exam details and answer key cannot be changed on this computer. The organiser can unlock with the PIN.</p>
+      <div class="row"><label class="f">Organiser PIN<input class="pin" type="password" inputmode="numeric" id="pinU" maxlength="8" autocomplete="current-password"></label>
+      <button type="button" id="doUnlock">Unlock</button></div><div id="lockMsg"></div>`;
+    const go=()=>{if(pinHash($('#pinU').value.trim(),lk.salt)===lk.hash){unlocked=true;render('setup');toast('Unlocked on this computer')}else{$('#lockMsg').innerHTML='<p class="errline">That PIN is not correct.</p>';$('#pinU').select()}};
+    $('#doUnlock').onclick=go;$('#pinU').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+  } else {
+    el.innerHTML=`<div class="lockhead"><h2>${LOCK_SVG}Unlocked on this computer</h2><span class="pill warn">Editing allowed</span></div>
+      <p class="sub" style="margin-top:6px">You can change the exam and key now. Lock again before handing the computer to a volunteer. If you change the key, share the exam again; the ranking on this computer always uses this computer's key.</p>
+      <div class="row"><button type="button" class="primary" id="relock">Lock again</button><button type="button" class="ghost danger" id="rmLock">Remove PIN</button></div>`;
+    $('#relock').onclick=()=>{unlocked=false;render('setup');toast('Locked')};
+    $('#rmLock').onclick=()=>{S.exam.lock=null;unlocked=false;save();render('setup');toast('PIN removed. Exam is not locked')};
+  }
+}
+
+/* ---------- exam & results codes ---------- */
+const b64e=t=>btoa(unescape(encodeURIComponent(t))), b64d=t=>decodeURIComponent(escape(atob(t)));
+const FL_ENC={double:'d',faint:'f',erased:'e'}, FL_DEC={d:'double',f:'faint',e:'erased'};
+function examCode(){const e=S.exam;return 'OMR-EXAM:'+b64e(JSON.stringify({t:'omr-exam',v:1,id:e.id,title:e.title,date:e.date,nq:e.nq,key:e.key.slice(0,e.nq).map(v=>v==null?'-':'ABCD'[v]).join(''),lock:e.lock}))}
+function resultsCode(){const list=S.sheets.filter(s=>!s.example).map(s=>({i:s.id,f:s.file||'',b:s.by||tidy(S.me),n:s.name,a:s.age,r:s.role,l:s.lang,p:s.place,u:s.sub,x:s.error||'',d:s.dupOk?1:0,
+  q:s.resp.slice(0,S.exam.nq).map(v=>v==null?'-':'ABCD'[v]).join(''),g:s.flags.slice(0,S.exam.nq).map(f=>f?FL_ENC[f]:'.').join('')}));
+  return 'OMR-RESULTS:'+b64e(JSON.stringify({t:'omr-results',v:1,exam:S.exam.id,title:S.exam.title,ks:keySig(),from:tidy(S.me),at:new Date().toISOString(),sheets:list}))}
+function parseCode(text){const t=String(text||'').trim();const m=t.match(/OMR-(EXAM|RESULTS):([A-Za-z0-9+/=\s]+)/);if(!m)throw new Error('This is not an exam or results code from OMR Result Desk.');
+  let o;try{o=JSON.parse(b64d(m[2].replace(/\s+/g,'')))}catch(e){throw new Error('The code is incomplete or damaged. Copy it again in full.')}return o}
+const canDownload=window.self===window.top;
+function downloadText(name,text){const blob=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function copyText(text,box,okMsg){const show=()=>{box.hidden=false;box.value=text;box.focus();box.select()};
+  try{navigator.clipboard.writeText(text).then(()=>{box.hidden=true;toast(okMsg)},show)}catch(e){show()}}
+const slug=t=>(tidy(t)||'exam').replace(/[^A-Za-z0-9ऀ-ൿ]+/g,'-').slice(0,40);
+async function readFiles(files){const out=[];for(const f of files)out.push(await f.text());return out}
+
+function loadExam(o,confirmed){
+  if(o.t!=='omr-exam')throw new Error('This is a results code. Add it under Sheets → Combine computers.');
+  const real=S.sheets.filter(s=>!s.example);
+  if(real.length&&o.id!==S.exam.id&&!confirmed)return 'confirm';
+  if(o.id!==S.exam.id){S.sheets=[];S.placeMap={};S.subMap={};current=null}
+  S.sheets=S.sheets.filter(s=>!s.example);
+  S.exam={id:o.id,title:o.title||'',date:o.date||'',nq:o.nq,key:o.key.split('').map(c=>c==='-'?null:'ABCD'.indexOf(c)),lock:o.lock||null};
+  while(S.exam.key.length<50)S.exam.key.push(null);
+  S.sheets.forEach(s=>{while(s.resp.length<o.nq)s.resp.push(null);while(s.flags.length<o.nq)s.flags.push(null)});
+  unlocked=false;save();return 'ok';
+}
+function renderShare(){
+  const el=$('#sharePanel');const keyLeft=S.exam.nq-keyCount();const ready=!keyLeft&&S.exam.lock;
+  el.innerHTML=`<h2>Share with volunteers</h2><p class="sub">Each volunteer's computer keeps its own data. Send them this exam once; they send their results back at the end (Sheets → Combine computers).</p>
+  <div class="sharegrid">
+    <div><h3>Send this exam</h3>
+      ${ready?`<p>Includes the title, number of questions, answer key and the lock. It does not include the PIN.</p>
+      <div class="row">${canDownload?'<button type="button" class="primary" id="dlExam">Download exam file</button>':''}<button type="button" id="cpExam">Copy exam code</button></div>`
+      :`<p class="errline" style="color:var(--ink)">${keyLeft?`Complete the answer key first (${keyLeft} missing).`:'Lock the exam with a PIN first, so volunteers cannot change it.'}</p>`}
+      <textarea class="codebox" id="examOut" readonly hidden></textarea></div>
+    <div><h3>Load an exam from the organiser</h3>
+      <p>Volunteers: open the exam file you were sent, or paste the code.</p>
+      <div class="row"><button type="button" id="openExam">Open exam file</button><input type="file" id="examFile" accept=".txt,.json,text/plain,application/json" hidden></div>
+      <textarea class="codebox" id="examIn" placeholder="or paste the exam code here (starts with OMR-EXAM:)"></textarea>
+      <div class="row"><button type="button" id="loadExamBtn">Load exam</button></div><div id="examMsg"></div></div>
+  </div>`;
+  if(ready){if(canDownload)$('#dlExam').onclick=()=>downloadText(`${slug(S.exam.title)}.omr-exam.txt`,examCode());
+    $('#cpExam').onclick=()=>copyText(examCode(),$('#examOut'),'Exam code copied. Paste it to volunteers')}
+  const msg=(cls,t)=>$('#examMsg').innerHTML=`<p class="${cls}">${esc(t)}</p>`;
+  const tryLoad=(text,confirmed)=>{let o;try{o=parseCode(text)}catch(e){msg('errline',e.message);return}
+    try{const r=loadExam(o,confirmed);
+      if(r==='confirm'){$('#examMsg').innerHTML=`<div class="confirm"><span>This computer has ${S.sheets.filter(s=>!s.example).length} sheets from another exam. Loading “${esc(o.title||'this exam')}” removes them.</span><button type="button" class="danger" id="exYes">Load and remove them</button><button type="button" id="exNo">Cancel</button></div>`;
+        $('#exYes').onclick=()=>tryLoad(text,true);$('#exNo').onclick=()=>$('#examMsg').innerHTML='';return}
+      render('setup');toast(`Loaded “${S.exam.title||'exam'}”`);
+    }catch(e){msg('errline',e.message)}};
+  $('#loadExamBtn').onclick=()=>tryLoad($('#examIn').value);
+  $('#openExam').onclick=()=>$('#examFile').click();
+  $('#examFile').onchange=async e=>{const t=await readFiles(e.target.files);e.target.value='';if(t[0])tryLoad(t[0])};
+}
+
+/* ---------- combine results ---------- */
+function renderCombine(){
+  const el=$('#combinePanel');const mine=S.sheets.filter(s=>!s.example).length;
+  el.innerHTML=`<h2>Combine computers</h2><p class="sub">Volunteers send their sheets to the organiser, who adds them all here before ranking. Typed details and answers travel; scanned images do not.</p>
+  <div class="sharegrid">
+    <div><h3>Send my sheets to the organiser</h3>
+      <label class="f">Your name (shown on each sheet you read)<input type="text" id="meName" value="${esc(S.me)}" placeholder="e.g. Sister Mary" autocomplete="name"></label>
+      ${mine?`<p>${mine} sheet${mine>1?'s':''} on this computer${S.sheets.filter(needsAttention).length?`, <b style="color:var(--warn)">${S.sheets.filter(needsAttention).length} still need attention</b>`:''}.</p>
+      <div class="row">${canDownload?'<button type="button" class="primary" id="dlRes">Download results file</button>':''}<button type="button" id="cpRes">Copy results code</button></div>`:'<p>No sheets on this computer yet.</p>'}
+      <textarea class="codebox" id="resOut" readonly hidden></textarea></div>
+    <div><h3>Add sheets from other computers</h3>
+      <p>Organiser: open the results files volunteers sent, or paste a code. Sheets already added are updated, not doubled.</p>
+      <div class="row"><button type="button" id="openRes">Open results files</button><input type="file" id="resFile" accept=".txt,.json,text/plain,application/json" multiple hidden></div>
+      <textarea class="codebox" id="resIn" placeholder="or paste a results code here (starts with OMR-RESULTS:)"></textarea>
+      <div class="row"><button type="button" id="addResBtn">Add results</button></div><div id="resMsg"></div></div>
+  </div>`;
+  $('#meName').addEventListener('input',e=>{S.me=e.target.value;save()});
+  if(mine){if(canDownload)$('#dlRes').onclick=()=>downloadText(`${slug(S.exam.title)}-results-${slug(S.me||'volunteer')}.omr-results.txt`,resultsCode());
+    $('#cpRes').onclick=()=>copyText(resultsCode(),$('#resOut'),'Results code copied. Send it to the organiser')}
+  const addAll=texts=>{const lines=[];let added=0,updated=0,same=0;
+    for(const text of texts){let o;try{o=parseCode(text)}catch(e){lines.push(['errline',e.message]);continue}
+      if(o.t!=='omr-results'){lines.push(['errline','That is an exam code. Load it under Exam & key.']);continue}
+      if(o.exam!==S.exam.id){lines.push(['errline',`Results from ${o.from||'a volunteer'} belong to a different exam (“${o.title||'untitled'}”). Make sure everyone loaded the same exam file.`]);continue}
+      let a=0,u=0;
+      for(const x of o.sheets){const sh={id:x.i,file:x.f,by:x.b,name:x.n,age:x.a,role:x.r,lang:x.l,place:x.p,sub:x.u,error:x.x||undefined,dupOk:!!x.d,
+        resp:x.q.split('').map(c=>c==='-'?null:'ABCD'.indexOf(c)),flags:x.g.split('').map(c=>FL_DEC[c]||null)};
+        while(sh.resp.length<S.exam.nq){sh.resp.push(null);sh.flags.push(null)}
+        const at=S.sheets.findIndex(s=>s.id===sh.id);
+        if(at<0){S.sheets.push(sh);a++}else if(JSON.stringify(S.sheets[at])!==JSON.stringify(sh)){S.sheets[at]=sh;u++}else same++}
+      added+=a;updated+=u;
+      lines.push(['okline',`${o.sheets.length} sheets from ${o.from||'a volunteer'}: ${a} added, ${u} updated.${o.ks!==keySig()?' Their copy of the key was different; scores here use this computer\'s key.':''}`]);
+    }
+    if(added||updated){S.sheets=S.sheets.filter(s=>!s.example);save()}
+    render('sheets');
+    $('#resMsg').innerHTML=lines.map(([c,t])=>`<p class="${c}">${esc(t)}</p>`).join('');
+    if(added||updated){$('#resIn').value='';toast(`${added} added, ${updated} updated`)}};
+  $('#addResBtn').onclick=()=>addAll([$('#resIn').value]);
+  $('#openRes').onclick=()=>$('#resFile').click();
+  $('#resFile').onchange=async e=>{const t=await readFiles(e.target.files);e.target.value='';addAll(t)};
+}
+
+$('#clearEx').onclick=()=>{S.sheets=S.sheets.filter(s=>!s.example);if(S.exam.sample){const b=blankState();S.exam=b.exam;S.placeMap={};S.subMap={}}current=S.sheets[0]?S.sheets[0].id:null;save();route();toast('Examples cleared')};
 
 route();
 })();
