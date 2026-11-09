@@ -70,7 +70,7 @@ button.small{font-size:.82rem;padding:4px 10px}
 .q .qn{width:28px;text-align:right;font-family:var(--f-data);font-size:.82rem;color:var(--muted);flex:none}
 .bub{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font-family:var(--f-body);font-size:.78rem;font-weight:600;padding:0;display:grid;place-items:center;cursor:pointer;flex:none}
 .bub:hover{border-color:var(--ink);color:var(--ink)}
-.bub:disabled{cursor:default}.bub:disabled:hover{border-color:var(--muted);color:var(--muted)}.bub.on:disabled{color:var(--surface)}
+.bub:disabled{cursor:default;opacity:1}.bub:disabled:hover{border-color:var(--muted);color:var(--muted)}.bub.on:disabled{color:var(--surface)}
 .bub.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .bub.key{box-shadow:0 0 0 2px var(--ok)}
 .bub.on.right{background:var(--ok);border-color:var(--ok)}
@@ -198,7 +198,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
     <div class="panel">
       <h2>Answer key</h2>
       <p class="sub">Tap the correct option for each question, or paste the whole key as letters (for example <span class="mono">ABDCA BBCDA…</span>; spaces and numbers are ignored). One key works for every language version of the sheet.</p>
-      <div class="row" style="margin-bottom:14px">
+      <div class="row" id="pasteRow" style="margin-bottom:14px">
         <label class="f" style="flex:1 1 300px">Paste key<textarea id="keyPaste" rows="2" placeholder="ABCD..."></textarea></label>
         <button type="button" id="applyKey">Apply pasted key</button>
       </div>
@@ -207,8 +207,8 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
     </div>
     <div class="panel" id="sharePanel"></div>
     <div class="panel">
-      <h2>Start a new exam</h2>
-      <p class="sub">Removes all sheets, the key, merged places and bands from this browser. Copy your ranking first if you need it.</p>
+      <h2>Start again on this computer</h2>
+      <p class="sub">Removes the sheets and merged places from this browser (and the key, unless it is built into the website). Copy your ranking first if you need it.</p>
       <div id="resetArea"><button type="button" class="danger" id="resetAll">Clear everything</button></div>
     </div>
   </section>
@@ -311,6 +311,7 @@ footer.foot{margin-top:28px;color:var(--muted);font-size:.85rem;display:flex;fle
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/pdf.min.js"></script>
+<script src="exam-config.js"></script>
 <script src="omr-reader.js"></script>
 <script>
 (function(){
@@ -331,9 +332,16 @@ if(window.pdfjsLib){try{pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worke
 
 /* ---------- state ---------- */
 let S=migrate(load())||sample();
+const FX=(()=>{const f=window.OMR_FIXED_EXAM;if(!f)return null;const k=String(f.key||'').toUpperCase().replace(/[^ABCD]/g,'');return k?{...f,k}:null})();
+if(FX){const nq=Math.min(50,FX.questions||FX.k.length);const key=FX.k.slice(0,nq).split('').map(c=>'ABCD'.indexOf(c));while(key.length<50)key.push(null);
+  if(S.exam.id!==FX.id){S.sheets=S.sheets.filter(s=>!s.example);S.placeMap=S.exam.sample?{}:S.placeMap;S.subMap=S.exam.sample?{}:S.subMap}
+  S.sheets=S.sheets.filter(s=>!s.example);
+  S.exam={id:FX.id,title:FX.title||'',date:FX.date||'',nq,key,lock:null,fixed:true};
+  S.sheets.forEach(s=>{while(s.resp.length<nq)s.resp.push(null);while(s.flags.length<nq)s.flags.push(null)});
+  try{localStorage.setItem('omr-desk-v2',JSON.stringify(S))}catch(e){}}
 let current=S.sheets[0]?S.sheets[0].id:null;
 let filter='all', placeField='place', busy=false, unlocked=false;
-const locked=()=>!!S.exam.lock&&!unlocked;
+const locked=()=>!!S.exam.fixed||(!!S.exam.lock&&!unlocked);
 const images={}; // sheet id -> {header, preview} data URLs, this tab only
 
 function sample(){
@@ -355,7 +363,9 @@ function sample(){
 function blankState(){return {v:2,me:'',exam:{id:rid(),title:'',date:'',nq:50,key:Array(50).fill(null),lock:null},sheets:[],placeMap:{},subMap:{},bands:DEFAULT_BANDS.map(b=>({...b})),groupBy:'age'}}
 function load(){try{const t=localStorage.getItem('omr-desk-v2');return t?JSON.parse(t):null}catch(e){return null}}
 function migrate(s){if(!s||s.v!==2)return null;s.subMap=s.subMap||{};s.exam.id=s.exam.id||rid();s.exam.lock=s.exam.lock||null;s.me=s.me||'';s.sheets.forEach(x=>{x.flags=x.flags||Array(s.exam.nq).fill(null)});return s}
-let saveT; function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('omr-desk-v2',JSON.stringify(S))}catch(e){toast('Could not save in this browser')}},250)}
+let saveT; function saveNow(){clearTimeout(saveT);try{localStorage.setItem('omr-desk-v2',JSON.stringify(S))}catch(e){toast('Could not save in this browser')}}
+function save(){clearTimeout(saveT);saveT=setTimeout(saveNow,250)}
+window.addEventListener('pagehide',saveNow);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveNow()});
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2200)}
 
 /* ---------- derived ---------- */
@@ -386,7 +396,7 @@ function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:'she
 window.addEventListener('hashchange',route);
 function render(v){
   $('#exbanner').hidden=!S.sheets.some(s=>s.example);examline();
-  $('nav.steps a[data-v="setup"] small').textContent=S.exam.lock?(unlocked?'Unlocked on this computer':'Locked by organiser'):'Questions and correct options';
+  $('nav.steps a[data-v="setup"] small').textContent=S.exam.fixed?'Set by organiser · read-only':S.exam.lock?(unlocked?'Unlocked on this computer':'Locked by organiser'):'Questions and correct options';
   if(v==='setup')renderSetup(); if(v==='sheets'){renderSheets();renderCombine()} if(v==='places')renderPlaces(); if(v==='ranking')renderRanking();
 }
 
@@ -407,13 +417,16 @@ function bubbleGrid(el,values,opts){
 /* ---------- setup ---------- */
 function renderSetup(){
   $('#exTitle').value=S.exam.title||'';$('#exDate').value=S.exam.date||'';$('#exNq').value=S.exam.nq;
-  const L=locked();['#exTitle','#exDate','#exNq','#keyPaste','#applyKey'].forEach(id=>$(id).disabled=L);
+  const L=locked();$('#pasteRow').hidden=!!S.exam.fixed;['#exTitle','#exDate','#exNq','#keyPaste','#applyKey'].forEach(id=>$(id).disabled=L);
   bubbleGrid($('#keyGrid'),S.exam.key,{idp:'k',readOnly:L,onChange(){delete S.exam.sample;save();renderSetup()}});
   renderLock();renderShare();
   const left=S.exam.nq-keyCount();
   $('#keyStatus').innerHTML=left?`<span class="pill warn">${left} of ${S.exam.nq} still without a correct option</span>`:`<span class="pill ok">Key complete</span> All ${S.exam.nq} questions have a correct option.`;
-  $('#resetArea').innerHTML=L?'<p class="note" style="margin:0">Locked. Unlock with the organiser PIN to clear this computer.</p>':'<button type="button" class="danger" id="resetAll">Clear everything</button>';
-  if(!L)$('#resetAll').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, results and the key?</span><button type="button" class="danger" id="resetYes">Yes, clear everything</button><button type="button" id="resetNo">Keep</button></div>';
+  if(S.exam.fixed){$('#resetArea').innerHTML='<button type="button" class="danger" id="resetSheets">Remove all sheets on this computer</button>';
+    $('#resetSheets').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, typed details and merged places on this computer? The exam and key stay.</span><button type="button" class="danger" id="rsYes">Yes, remove</button><button type="button" id="rsNo">Keep</button></div>';
+      $('#rsYes').onclick=()=>{S.sheets=[];S.placeMap={};S.subMap={};Object.keys(images).forEach(k=>delete images[k]);current=null;save();render('setup');toast('Sheets removed')};$('#rsNo').onclick=renderSetup};}
+  else $('#resetArea').innerHTML=L?'<p class="note" style="margin:0">Locked. Unlock with the organiser PIN to clear this computer.</p>':'<button type="button" class="danger" id="resetAll">Clear everything</button>';
+  if(!L&&!S.exam.fixed)$('#resetAll').onclick=()=>{$('#resetArea').innerHTML='<div class="confirm"><span>Remove all sheets, results and the key?</span><button type="button" class="danger" id="resetYes">Yes, clear everything</button><button type="button" id="resetNo">Keep</button></div>';
     $('#resetYes').onclick=()=>{S=blankState();unlocked=false;Object.keys(images).forEach(k=>delete images[k]);current=null;save();render('setup');toast('Cleared. Ready for a new exam')};$('#resetNo').onclick=renderSetup};
 }
 $('#exTitle').addEventListener('input',e=>{if(locked())return;delete S.exam.sample;S.exam.title=e.target.value;save();examline()});
@@ -583,6 +596,8 @@ if(window.self===window.top){$('#dlCsv').hidden=false;$('#dlCsv').onclick=()=>{c
 const LOCK_SVG='<svg class="lockicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
 function renderLock(){
   const el=$('#lockPanel'),lk=S.exam.lock;
+  if(S.exam.fixed){el.innerHTML=`<div class="lockhead"><h2>${LOCK_SVG}Set by the organiser</h2><span class="pill ok">Read-only</span></div>
+      <p class="sub" style="margin:6px 0 0">This exam and its answer key are built into the website, so every computer uses the same key automatically. They cannot be changed here.</p>`;return}
   if(!lk){
     el.innerHTML=`<div class="lockhead"><h2>${LOCK_SVG}Organiser lock</h2><span class="pill warn">Not locked</span></div>
       <p class="sub" style="margin-top:6px">Set a PIN to lock the exam details, answer key and "Clear everything". Volunteers can still see the key and read sheets, but only someone with the PIN can change it.</p>
@@ -637,7 +652,7 @@ function loadExam(o,confirmed){
   unlocked=false;save();return 'ok';
 }
 function renderShare(){
-  const el=$('#sharePanel');const keyLeft=S.exam.nq-keyCount();const ready=!keyLeft&&S.exam.lock;
+  const el=$('#sharePanel');el.hidden=!!S.exam.fixed;if(S.exam.fixed)return;const keyLeft=S.exam.nq-keyCount();const ready=!keyLeft&&S.exam.lock;
   el.innerHTML=`<h2>Share with volunteers</h2><p class="sub">Each volunteer's computer keeps its own data. Send them this exam once; they send their results back at the end (Sheets → Combine computers).</p>
   <div class="sharegrid">
     <div><h3>Send this exam</h3>
