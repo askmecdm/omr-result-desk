@@ -7,5 +7,5 @@ window.OMR_FIXED_EXAM = {
   title: "Bible Quiz – Children's Retreat 2026",
   date: "",
   questions: 50,
-  key: ""
+  key: "ADCCB DCAAC CBCDB BCCBA CDCBD BBCAC BBBDD BCCAC DCDBA DABCD"
 };
