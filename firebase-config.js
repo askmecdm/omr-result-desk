@@ -5,7 +5,7 @@
 window.OMR_FIREBASE = {
   config: { apiKey: "...", authDomain: "...", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." },
   adminEmails: ["organiser@gmail.com"],
-  recaptchaSiteKey: "...",            // reCAPTCHA v3 site key registered in App Check
+  fraudDefenseKey: "...",             // Fraud Defense (reCAPTCHA Enterprise) site key registered in App Check
   ai: { model: "gemini-2.5-flash" }   // remove this line to switch off reading handwriting
 };
 */

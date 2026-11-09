@@ -38,8 +38,11 @@
     if (!FB) { Store.error = 'The shared database could not be loaded. Check the internet connection and reload.'; return Promise.resolve(); }
     const app = FB.initializeApp(cfg.config);
     // App Check (reCAPTCHA v3) proves requests come from this website; Firebase requires it for the AI reading.
-    if (cfg.recaptchaSiteKey && FB.initializeAppCheck) {
-      try { FB.initializeAppCheck(app, { provider: new FB.ReCaptchaV3Provider(cfg.recaptchaSiteKey), isTokenAutoRefreshEnabled: true }); }
+    if ((cfg.fraudDefenseKey || cfg.recaptchaSiteKey) && FB.initializeAppCheck) {
+      try {
+        const provider = cfg.fraudDefenseKey ? new FB.ReCaptchaEnterpriseProvider(cfg.fraudDefenseKey) : new FB.ReCaptchaV3Provider(cfg.recaptchaSiteKey);
+        FB.initializeAppCheck(app, { provider, isTokenAutoRefreshEnabled: true });
+      }
       catch (e) { console.warn('App Check unavailable', e); }
     }
     const auth = FB.getAuth(app);
