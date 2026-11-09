@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// OMR Result Desk: who may read and change the shared data.
+// Paste this whole file into Firebase console → Firestore Database → Rules, then Publish.
+// Replace ORGANISER_EMAIL below with the organiser's Google email (lower case).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ['ORGANISER_EMAIL'];
+    }
+
+    // Scanning is open unless the organiser has closed it for this exam.
+    function scanningOpen(examId) {
+      let path = /databases/$(database)/documents/shared/$(examId);
+      return !exists(path) || get(path).data.get('session', {'open': true}).get('open', true) == true;
+    }
+
+    function shortText(v, n) {
+      return v is string && v.size() <= n;
+    }
+
+    function validSheet(d) {
+      return d.keys().hasOnly(['examId', 'by', 'byName', 'file', 'name', 'age', 'role', 'lang', 'place', 'sub', 'q', 'g', 'x', 'd', 'auto', 't'])
+        && d.keys().hasAll(['examId', 'by', 'q', 'g'])
+        && shortText(d.examId, 80) && shortText(d.by, 128)
+        && shortText(d.q, 50) && shortText(d.g, 50)
+        && (!('byName' in d) || shortText(d.byName, 60))
+        && (!('file' in d) || shortText(d.file, 120))
+        && (!('name' in d) || shortText(d.name, 80))
+        && (!('age' in d) || d.age is number || d.age == '')
+        && (!('role' in d) || shortText(d.role, 60))
+        && (!('lang' in d) || shortText(d.lang, 20))
+        && (!('place' in d) || shortText(d.place, 60))
+        && (!('sub' in d) || shortText(d.sub, 60))
+        && (!('x' in d) || shortText(d.x, 200))
+        && (!('d' in d) || d.d is bool)
+        && (!('auto' in d) || (d.auto is list && d.auto.size() <= 6))
+        && (!('t' in d) || d.t is timestamp);
+    }
+
+    // One document per answer sheet.
+    match /sheets/{sheetId} {
+      allow read: if signedIn();
+      // Anyone visiting may add sheets while scanning is open; each sheet records who added it.
+      allow create: if signedIn() && validSheet(request.resource.data)
+        && (isAdmin() || (request.resource.data.by == request.auth.uid && scanningOpen(request.resource.data.examId)));
+      // Only the person who added a sheet (while scanning is open) or the organiser may change it.
+      allow update: if signedIn() && validSheet(request.resource.data)
+        && (isAdmin() || (resource.data.by == request.auth.uid
+                          && request.resource.data.by == request.auth.uid
+                          && request.resource.data.examId == resource.data.examId
+                          && scanningOpen(resource.data.examId)));
+      allow delete: if isAdmin() || (signedIn() && resource.data.by == request.auth.uid && scanningOpen(resource.data.examId));
+    }
+
+    // Organiser settings per exam: scanning open/closed, merged place names, age groups.
+    match /shared/{examId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
