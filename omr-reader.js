@@ -183,17 +183,58 @@
   }
 
   // ---------- 3. read bubbles ----------
-  function measure(rec) {
+  // How strongly a printed bubble outline sits at (px,py) in page points: outside ring lighter than the outline.
+  const ANG = Array.from({ length: 24 }, (_, i) => [Math.cos(i / 24 * 2 * Math.PI), Math.sin(i / 24 * 2 * Math.PI)]);
+  function ringAt(rec, px, py) {
+    const { g, w, h, k } = rec; let on = 0, off = 0;
+    for (const [c, s] of ANG) {
+      const x1 = Math.round((px + c * RADIUS) * k), y1 = Math.round((py + s * RADIUS) * k);
+      const x2 = Math.round((px + c * (RADIUS + 2.4)) * k), y2 = Math.round((py + s * (RADIUS + 2.4)) * k);
+      if (x2 < 0 || y2 < 0 || x2 >= w || y2 >= h || x1 < 0 || y1 < 0 || x1 >= w || y1 >= h) return -1e9;
+      on += g[y1 * w + x1]; off += g[y2 * w + x2];
+    }
+    return off - on;
+  }
+  // Paper is rarely flat in a photo: find where each row of printed bubbles really is (a few points around
+  // the expected place), then let each bubble settle on its own outline.
+  function locate(rec) {
+    const pos = [];
+    for (let q = 0; q < 50; q++) {
+      const row = BUBBLES[q]; let best = { s: -1e18, dx: 0, dy: 0 };
+      for (let dy = -4.5; dy <= 4.5; dy += 0.5) for (let dx = -4.5; dx <= 4.5; dx += 0.5) {
+        let s = 0; for (const [bx, by] of row) s += ringAt(rec, bx + dx, by + dy);
+        s -= (dx * dx + dy * dy) * 2;            // prefer the expected place when outlines are equally clear
+        if (s > best.s) best = { s, dx, dy };
+      }
+      pos.push(row.map(([bx, by]) => {
+        let b = { s: -1e18, x: bx + best.dx, y: by + best.dy };
+        for (let ey = -1.5; ey <= 1.5; ey += 0.5) for (let ex = -1.5; ex <= 1.5; ex += 0.5) {
+          const x = bx + best.dx + ex, y = by + best.dy + ey, s = ringAt(rec, x, y) - (ex * ex + ey * ey) * 4;
+          if (s > b.s) b = { s, x, y };
+        }
+        return [b.x, b.y];
+      }));
+    }
+    return pos;
+  }
+
+  function measure(rec, pos) {
     const { g, w, k } = rec, fills = [];
     const rin = RADIUS * 0.65 * k;
     for (let q = 0; q < 50; q++) {
-      const row = BUBBLES[q];
+      const row = pos[q];
       // local paper level: bright percentile of the whole row strip
       const xs = row[0][0] - 12, xe = row[3][0] + 12, ys = row[0][1] - 11, ye = row[0][1] + 16, strip = [];
       for (let y = Math.round(ys * k); y < Math.round(ye * k); y += 2) for (let x = Math.round(xs * k); x < Math.round(xe * k); x += 2) strip.push(g[y * w + x]);
-      const paper = Math.max(60, pct(strip, 0.85));
+      const rowPaper = Math.max(60, pct(strip, 0.85));
       const f = row.map(([bx, by]) => {
         const cx = bx * k, cy = by * k; let sum = 0, n = 0;
+        // paper brightness right around this bubble (shadows in photos change it across a row)
+        const ring = [];
+        for (const [c, sn] of ANG) for (const rr of [RADIUS + 2.4, RADIUS + 3.4]) {
+          const x = Math.round((bx + c * rr) * k), y = Math.round((by + sn * rr) * k); ring.push(g[y * w + x]);
+        }
+        const paper = Math.max(60, Math.min(rowPaper, pct(ring, 0.8)));
         for (let y = Math.floor(cy - rin); y <= Math.ceil(cy + rin); y++) for (let x = Math.floor(cx - rin); x <= Math.ceil(cx + rin); x++) {
           if ((x - cx) ** 2 + (y - cy) ** 2 > rin * rin) continue;
           sum += Math.max(0, Math.min(1, (paper - g[y * w + x]) / (paper * 0.85))); n++;
@@ -257,7 +298,8 @@
     }
     if (!best || best.s < 12) return { ok: false, error: 'The page could not be lined up with the answer grid. Retake the photo flat and straight, with even light.' };
     const rec = rectify(img, best.Hpi, 2.4);
-    const fills = measure(rec);
+    const pos = locate(rec);
+    const fills = measure(rec, pos);
     const { resp, flags, markT } = decide(fills);
     return {
       ok: true, resp, flags, fills, markT,
